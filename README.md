@@ -1,6 +1,6 @@
 # Study Planner API
 
-This is an API that i made for [Raspapi](https://raspapi.hackclub.com/) event, its a FastAPI based study planning system with streak tracking, motivation system and a rate limiting
+This is an API that i made for [Raspapi](https://raspapi.hackclub.com/) event, its a **FastAPI** based study planning system with streak tracking, motivation system and a rate limiting
 
 ## Features
 
