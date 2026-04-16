@@ -1,0 +1,40 @@
+{
+  "users": {
+    "ereninki": {
+      "token": "fad388c697a338cc8b8591bb5c198866",
+      "streak": 0,
+      "last_streak_date": "2026-04-16",
+      "plan": [
+        {
+          "study hour": 1,
+          "study": "study or practice math",
+          "break minutes": 3
+        },
+        {
+          "study hour": 1,
+          "study": "study or practice math",
+          "break minutes": 3
+        },
+        {
+          "study hour": 1,
+          "study": "study or practice math",
+          "break minutes": 3
+        },
+        {
+          "study hour": 1,
+          "study": "study or practice math",
+          "break minutes": 3
+        },
+        {
+          "study hour": 1,
+          "study": "study or practice math",
+          "break minutes": 3
+        }
+      ],
+      "rate_limit": {
+        "window_start": "2026-04-16T13:55:40.436416",
+        "count": 4
+      }
+    }
+  }
+}
