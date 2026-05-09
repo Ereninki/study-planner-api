@@ -46,9 +46,9 @@ This API using authorization so you need to use **Authorization** and select the
 **URL:** `/api/v1/new-study-plan`  
 **Method:** `POST`  
 **Necessary Query Parameter:** `hours(int), subject(string)`  
-**Not Necessary but you need to use one of them but not both of them:** `difficulty(string (easy, medium or hard only)), break_time(int)`  
-**Usage:** `Making you a study plan for the subject you choose and the difficulty query is for deciding the break time, if you have a break time in your mind just use break time and not use difficulty.`  
-**Example:** `https://study-planner-api-nu.vercel.app/api/v1/new-study-plan?hours=5&subject="math"&difficulty="easy` or `https://study-planner-api-nu.vercel.app/api/v1/new-study-plan?hours=8&subject="science"&break_time=3`
+ **Not Necessary but you need to use one of them but not both of them:** `difficulty(string (easy, medium or hard only)), break_time(int)`  
+ **Usage:** `Making you a study plan for the subject you choose and the difficulty query is for deciding the break time, if you have a break time in your mind just use break time and not use difficulty.`  
+ **Example:** `https://study-planner-api-nu.vercel.app/api/v1/new-study-plan?hours=5&subject="math"&difficulty="easy` or `https://study-planner-api-nu.vercel.app/api/v1/new-study-plan?hours=8&subject="science"&break_time=3`
 
 ---
 
