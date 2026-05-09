@@ -1,4 +1,5 @@
 # Study Planner API
+![Atl Text](https://hackatime.hackclub.com/api/v1/badge/U0ASCU7PCAW/Ereninki/study-planner-api)
 
 This is an API that i made for [Raspapi](https://raspapi.hackclub.com/) event, its a **FastAPI** based study planning system with **streak tracking, motivation system with a rate limiting**
 
