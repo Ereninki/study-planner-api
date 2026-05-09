@@ -86,7 +86,7 @@ async def rate_limit(user: str):
 
     await db.update({"count": int_count, "window_start": window_start}).eq("username", user).execute()
 
-@app.get("/api/v1/get-token")
+@app.post("/api/v1/get-token")
 async def get_token(username: str):
 
     usernames = await db.select("username").eq("username", username).execute()
@@ -108,7 +108,7 @@ async def get_token(username: str):
     await db.insert(new_user_data).execute()
     return {"message": "here is your token sir", "token": user_token}
 
-@app.get("/api/v1/new-study-plan")
+@app.post("/api/v1/new-study-plan")
 async def study_plan(hours: int, subject: str, difficulty: str = None, break_time: int = None,user: str = Depends(get_current_user_token)):
     await rate_limit(user)
     if difficulty == None and break_time == None:
