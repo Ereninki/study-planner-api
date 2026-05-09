@@ -1,6 +1,6 @@
 # Study Planner API
 
-![Atl Text](https://camo.githubusercontent.com/97e7bdfc7ec056444bb02b36ef391a76512b4ddfa38e34bb655de710078cce01/68747470733a2f2f6861636b6174696d652e6861636b636c75622e636f6d2f6170692f76312f62616467652f55304153435537504341572f4572656e696e6b692f73747564792d706c616e6e65722d617069)
+![Atl Text](https://hackatime.hackclub.com/api/v1/badge/U0ASCU7PCAW/Ereninki/study-planner-api)
 
 This is an API that i made for [Raspapi](https://raspapi.hackclub.com/) event, its a **FastAPI** based study planning system with **streak tracking, motivation system with a rate limiting**
 
