@@ -1,14 +1,23 @@
+
+
+""" Only me and God know how this code still works """
+
+
 from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import date, datetime, timedelta
-from pydantic import BaseModel
+from datetime import date, datetime
 from random import choice
 import secrets
 import uvicorn
 import json
+from dotenv import load_dotenv
+from supabase import create_client, Client
+import os
+
+load_dotenv()
 
 app = FastAPI()
-db_file_name = "database.json"
+supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,104 +26,91 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def read_db():
-    try:
-        with open(db_file_name, "r") as db:
-            return json.load(db)
-    except:
-        return {"message": "i dunno why but i cant see database file"}
-def write_db(data):
-    try:
-        with open(db_file_name, "w") as db:
-            json.dump(data, db, indent=2)
-    except:
-        return {"message": "i dunno why but i cant write to database file"}
-def read_motivaiton():
+try:
+    db = supabase.table("users")
+except:
+    print("i cant see the database dude")
+
+async def read_motivaiton():
     try:
         with open("motivations.json","r", encoding="utf-8") as motivaitons:
             return json.load(motivaitons)
     except:
         return {"message": "sorry bro, no motivations here"}
 
-def get_current_user_token(authorization: str = Header(None)):
+async def get_current_user_token(authorization: str = Header(None)):
     if not authorization:
-        raise HTTPException(status_code=401, detail="my  api is hungry, give it your token pls")
-    db=read_db()
-
+        raise HTTPException(status_code=401, detail="my api is hungry, give it your token pls")
     try:
         token = str(authorization.split(" ")[1])
     except:
         raise HTTPException(status_code=401, detail="sorry, my api didnt like the token format. So, it refuses to eat")
     
-    for username, data in db["users"].items():
-        if data["token"] == token:
-            return username
-    
-    raise HTTPException(status_code=401, detail="sorry, my api didnt recognize this token. So, it refuses to eat")
+    username = await db.select("username").eq("token", token).execute()
+    if not username.data[0]["username"]:
+        raise HTTPException(status_code=401, detail="sorry, my api didnt recognize this token. So, it refuses to eat")
+    return username.data[0]["username"]
 
-def rate_limit(user: str):
-    db = read_db()
+async def rate_limit(user: str):
     now = datetime.now()
 
-    db["users"][user]
+    window_raw = await db.select("window_start").eq("username", user).execute()
 
-    rate_limit = db["users"][user].get("rate_limit", {})
+    user_count = await db.select("count").eq("username", user).execute()
+    int_user_count = int(user_count.data)
 
-    window_raw = rate_limit.get("window_start")
-
-    if not window_raw:
-        rate_limit["window_start"] = now.isoformat()
-        rate_limit["count"] = 1
-        write_db(db)
+    if not window_raw.data:
+        await db.update({"window_start": now.isoformat()}).eq("username", user).execute()
+        await db.update({"count": 1}).eq("username", user).execute()
         return
 
     try:
-        window_start = datetime.fromisoformat(window_raw)
+        window_start = datetime.fromisoformat(window_raw.data)
     except:
-        rate_limit["window_start"] = now.isoformat()
-        rate_limit["count"] = 1
-        write_db(db)
+        await db.update({"window_start": now.isoformat()}).eq("username", user).execute()
+        await db.update({"count": 1}).eq("username", user).execute()
         return
 
     if (now - window_start).total_seconds() >= 60:
-        rate_limit["window_start"] = now.isoformat()
-        rate_limit["count"] = 1
+        int_count = 1
+        window_start = now.isoformat()
     else:
-        rate_limit["count"] += 1
+        int_count = int_user_count + 1
 
-    if rate_limit["count"] > 20:
-        write_db(db)
+    if int_count > 20:
+        await db.update({"count": int_count, "window_start": window_start}).eq("username", user).execute()
         raise HTTPException(
             status_code=429,
             detail="chilllll bro, you exceed the rate limit"
         )
 
-    write_db(db)
+    await db.update({"count": int_count, "window_start": window_start}).eq("username", user).execute()
 
 @app.get("/api/v1/get-token")
-def get_token(username: str):
-    db = read_db()
+async def get_token(username: str):
 
-    if username in db["users"]:
+    usernames = await db.select("username").eq("username", username).execute()
+    if usernames.data:
         raise HTTPException(status_code=400, detail="sorry bro, but this username has already taken. Be more faster next time.")
 
     user_token = secrets.token_hex(16)
-    db["users"][username] = {
+    new_user_data = {
         "token": user_token,
         "streak": 0,
-        "last_streak_day": "none",
+        "last_streak_date": "none",
         "plan": [],
-        "rate_limit": {
-            "window_start": datetime.now().isoformat(),
-            "count": 0
-        }
+        "window_start": datetime.now().isoformat(),
+        "count": 0,
+        "still_keeping_time": "false",
+        "study_time": 0
+
     }
-    write_db(db)
+    await db.insert(new_user_data).execute()
     return {"message": "here is your token sir", "token": user_token}
 
 @app.get("/api/v1/new-study-plan")
-def study_plan(hours: int, subject: str, difficulty: str = None, break_time: int = None,user: str = Depends(get_current_user_token)):
-    rate_limit(user)
+async def study_plan(hours: int, subject: str, difficulty: str = None, break_time: int = None,user: str = Depends(get_current_user_token)):
+    await rate_limit(user)
     if difficulty == None and break_time == None:
         raise HTTPException(status_code=422, detail="my api wants a difficulty or a break time, you cant leave both of them empty")
     if difficulty and break_time:
@@ -135,7 +131,6 @@ def study_plan(hours: int, subject: str, difficulty: str = None, break_time: int
         else:
             raise HTTPException(status_code=400, detail="my api wants a parameter from the document")
 
-    db = read_db()
     plan = []
     for a in range(hours):
         plan.append({
@@ -143,10 +138,7 @@ def study_plan(hours: int, subject: str, difficulty: str = None, break_time: int
             "study": f"study or practice {subject}",
             "break minutes": break_time
         })
-    db["users"][user]["plan"] = plan
-    write_db(db)
-
-    db = read_db()
+    await db.update({"plan": plan}).eq("username", user).execute()
     
     if break_time >= 15:
         difficulty = "Easy"
@@ -157,78 +149,76 @@ def study_plan(hours: int, subject: str, difficulty: str = None, break_time: int
     elif break_time < 5:
         difficulty = "Hardcore"
 
-    if db["users"][user]["streak"] >= 1:
+    streak = await db.select("streak").eq("username", user).execute()
+    if streak.data[0]["streak"] >= 1:
         return {"user": user,
             "message": f"hey, i see that youre on a streak! keep it on fire baby!!!!!",    
             "difficulty": difficulty,
             "plan": plan}
+    
     
     return {"user": user,
             "difficulty": difficulty,
             "plan": plan}
 
 @app.get("/api/v1/get-study-plan")
-def get_study_plan(user: str = Depends(get_current_user_token)):
-    rate_limit(user)
-    db = read_db()
-    if db["users"][user]["plan"] == []:
+async def get_study_plan(user: str = Depends(get_current_user_token)):
+    await rate_limit(user)
+    have_plan = False
+    current_plan = await db.select("plan").eq("username", user).execute()
+    if current_plan.data[0]["plan"] == []:
         return {"message": "you dont have a plan bro.. NOW GO AND GET A STUDY PLAN!!!", "plan": []}
-    return {"message": "here is current plan sir", "plan": db["users"][user]["plan"]}
+    return {"message": "here is current plan sir", "plan": current_plan.data[0]["plan"]}
 
 @app.post("/api/v1/reset-study-plan")
-def reset_study_plan(user: str = Depends(get_current_user_token)):
-    rate_limit(user)
-    db = read_db()
-    if db["users"][user]["plan"] == []:
+async def reset_study_plan(user: str = Depends(get_current_user_token)):
+    await rate_limit(user)
+    current_plan = await db.select("plan").eq("username", user).execute()
+    if current_plan.data[0]["plan"] == []:
         return {"message": "bro, you dont have a study plan already. GO GET A STUDY PLAN"}
     else:
-        db["users"][user]["plan"] = []
+        await db.update({"plan": []}).eq("username", user).execute()
         return {"message": "your study plan succesfully reseted.. NOW GET A NEW STUDY PLAN YOU COUCH POTATO"}
 
 
 @app.post("/api/v1/update-streak")
-def update_streak(user: str = Depends(get_current_user_token)):
-    rate_limit(user)
-    db = read_db()
+async def update_streak(user: str = Depends(get_current_user_token)):
+    await rate_limit(user)
     today = str(date.today())
+    last_streak_date_db = await db.select("last_streak_date").eq("username", user).execute()
+    streak_db = await db.select("streak").eq("username", user).execute()
 
-    if db["users"][user]["last_streak_date"] == "none":
-        db["users"][user]["last_streak_date"] = today
-        db["users"][user]["streak"] += 1
-        write_db(db)
-        return{"message": "your streak is succesfully increased!", "streak": db["users"][user]["streak"]}
+    if last_streak_date_db.data[0]["last_streak_date"] == "none":
+        await db.update({"last_streak_date": today, "streak": streak_db.data[0]["streak"] + 1}).eq("username", user).execute()
+        return{"message": "your streak is succesfully increased!", "streak": streak_db.data[0]["streak"]}
     
-    last_streak_day = date.fromisoformat(db["users"][user]["last_streak_date"])
+    last_streak_day = date.fromisoformat(last_streak_date_db.data[0]["last_streak_date"])
 
-    if db["users"][user]["last_streak_date"] == today:
+    if last_streak_date_db.data[0]["last_streak_date"] == today:
         raise HTTPException(status_code=400, detail="hey, my api says you already updated your streak today")
     
     today = date.today()
     if (today - last_streak_day).days >= 2:
-        db["users"][user]["last_streak_date"] = today.isoformat()
-        db["users"][user]["streak"] = 1
-        write_db(db)
-        return {"message": "sorry bro, but you miss your streak", "current streak": db["users"][user]["streak"]}
+        await db.update({"last_streak_date": today.isoformat(), "streak": 1}).eq("username", user).execute()
+        return {"message": "sorry bro, but you miss your streak", "current streak": streak_db.data[0]["streak"]}
 
-    db["users"][user]["streak"] += 1
-    db["users"][user]["last_streak_date"] = today.isoformat()
+    await db.update({"streak": streak_db.data[0]["streak"] + 1, "last_streak_date": today.isoformat()}).eq("username", user).execute()
+    streak_db = await db.select("streak").eq("username", user).execute()
 
-    write_db(db)
-
-    return{"message": "your streak is succesfully increased!", "streak": db["users"][user]["streak"]}
+    return{"message": "your streak is succesfully increased!", "streak": streak_db.data[0]["streak"]}
 
 @app.get("/api/v1/motivation")
-def motivation(user: str = Depends(get_current_user_token)):
-    rate_limit(user)
-    motivations = read_motivaiton()
+async def motivation(user: str = Depends(get_current_user_token)):
+    await rate_limit(user)
+    motivations = await read_motivaiton()
     motivation_sentence = choice(motivations["motivations"])
     return {"motivation": f"{user}, {motivation_sentence}"}
 
 @app.get("/api/v1/me")
-def show_me(user: str = Depends(get_current_user_token)):
-    rate_limit(user)
-    db = read_db()
-    return {f"{user}": db["users"][user]}
+async def show_me(user: str = Depends(get_current_user_token)):
+    await rate_limit(user)
+    users_all_data = await db.select("*").eq("username", user).execute()
+    return {f"{user}": users_all_data.data[0]}
     
     
 
