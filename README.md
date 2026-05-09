@@ -20,7 +20,7 @@ This is an API that i made for [Raspapi](https://raspapi.hackclub.com/) event, i
 - Python
 - FastAPI
 - Uvicorn
-- JSON
+- Supabase
 
   ***
 
@@ -43,44 +43,44 @@ This API using authorization so you need to use **Authorization** and select the
 
 ---
 
-**URL:** `/api/v1/new-study-plan`
-**Method:** `POST`
-**Necessary Query Parameter:** `hours(int), subject(string)`
-**Not Necessary but you need to use one of them but not both of them:** `difficulty(string (easy, medium or hard only)), break_time(int)`
-**Usage:** `Making you a study plan for the subject you choose and the difficulty query is for deciding the break time, if you have a break time in your mind just use break time and not use difficulty.`
+**URL:** `/api/v1/new-study-plan`  
+**Method:** `POST`  
+**Necessary Query Parameter:** `hours(int), subject(string)`  
+**Not Necessary but you need to use one of them but not both of them:** `difficulty(string (easy, medium or hard only)), break_time(int)`  
+**Usage:** `Making you a study plan for the subject you choose and the difficulty query is for deciding the break time, if you have a break time in your mind just use break time and not use difficulty.`  
 **Example:** `https://study-planner-api-nu.vercel.app/api/v1/new-study-plan?hours=5&subject="math"&difficulty="easy` or `https://study-planner-api-nu.vercel.app/api/v1/new-study-plan?hours=8&subject="science"&break_time=3`
 
 ---
 
-**URL:** `/api/v1/get-study-plan`
-**Method:** ``GET`
-**Usage:** `Showing your current plan and not require any query parameters.`
+**URL:** `/api/v1/get-study-plan`  
+**Method:** `GET`  
+**Usage:** `Showing your current plan and not require any query parameters.`  
 **Example:** `https://study-planner-api-nu.vercel.app/api/v1/get-study-plan`
 
 ---
 
-**URL:** `/api/v1/reset-study-plan`
-**Method:** `POST`
-**Usage:** `Resetting your plan and not reqiure any query parameters either.`
+**URL:** `/api/v1/reset-study-plan`  
+**Method:** `POST`  
+**Usage:** `Resetting your plan and not reqiure any query parameters either.`  
 **Example:** `https://study-planner-api-nu.vercel.app/api/v1/reset-study-plan`
 
 ---
 
-**URL:** `/api/v1/update-streak`
-**Method:** `POST`
-**Usage:** `Updating your streak if its the new day and not require any query parameters either.`
+**URL:** `/api/v1/update-streak`  
+**Method:** `POST`  
+**Usage:** `Updating your streak if its the new day and not require any query parameters either.`  
 **Example:** `https://study-planner-api-nu.vercel.app/api/v1/update-streak`
 
 ---
 
-**URL:** `/api/v1/motivation`
-**Method:** `GET`
-**Usage:** `Giving you motivation words and not require any query parameters either.`
+**URL:** `/api/v1/motivation`  
+**Method:** `GET`  
+**Usage:** `Giving you motivation words and not require any query parameters either.`  
 **Example:** `https://study-planner-api-nu.vercel.app/api/v1/motivation`
 
 ---
 
-**URL:** `/api/v1/me`
-**Method:** `GET`
-**Usage:** `Showing you every detail about you and not reqiure any query paramaters`
+**URL:** `/api/v1/me`  
+**Method:** `GET`  
+**Usage:** `Showing you every detail about you and not reqiure any query paramaters`  
 **Example:** `https://study-planner-api-nu.vercel.app/api/v1/me`
