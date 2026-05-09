@@ -46,7 +46,7 @@ async def get_current_user_token(authorization: str = Header(None)):
     except:
         raise HTTPException(status_code=401, detail="sorry, my api didnt like the token format. So, it refuses to eat")
     
-    username = await db.select("username").eq("token", token).execute()
+    username = db.select("username").eq("token", token).execute()
     if not username.data[0]["username"]:
         raise HTTPException(status_code=401, detail="sorry, my api didnt recognize this token. So, it refuses to eat")
     return username.data[0]["username"]
@@ -54,21 +54,21 @@ async def get_current_user_token(authorization: str = Header(None)):
 async def rate_limit(user: str):
     now = datetime.now()
 
-    window_raw = await db.select("window_start").eq("username", user).execute()
+    window_raw = db.select("window_start").eq("username", user).execute()
 
-    user_count = await db.select("count").eq("username", user).execute()
-    int_user_count = int(user_count.data)
+    user_count = db.select("count").eq("username", user).execute()
+    int_user_count = int(user_count.data[0].get('count', 0))
 
     if not window_raw.data:
-        await db.update({"window_start": now.isoformat()}).eq("username", user).execute()
-        await db.update({"count": 1}).eq("username", user).execute()
+        db.update({"window_start": now.isoformat()}).eq("username", user).execute()
+        db.update({"count": 1}).eq("username", user).execute()
         return
 
     try:
         window_start = datetime.fromisoformat(window_raw.data)
     except:
-        await db.update({"window_start": now.isoformat()}).eq("username", user).execute()
-        await db.update({"count": 1}).eq("username", user).execute()
+        db.update({"window_start": now.isoformat()}).eq("username", user).execute()
+        db.update({"count": 1}).eq("username", user).execute()
         return
 
     if (now - window_start).total_seconds() >= 60:
@@ -78,34 +78,33 @@ async def rate_limit(user: str):
         int_count = int_user_count + 1
 
     if int_count > 20:
-        await db.update({"count": int_count, "window_start": window_start}).eq("username", user).execute()
+        db.update({"count": int_count, "window_start": window_start}).eq("username", user).execute()
         raise HTTPException(
             status_code=429,
             detail="chilllll bro, you exceed the rate limit"
         )
 
-    await db.update({"count": int_count, "window_start": window_start}).eq("username", user).execute()
+    db.update({"count": int_count, "window_start": window_start}).eq("username", user).execute()
 
 @app.post("/api/v1/get-token")
 async def get_token(username: str):
 
-    usernames = await db.select("username").eq("username", username).execute()
+    usernames = db.select("username").eq("username", username).execute()
     if usernames.data:
         raise HTTPException(status_code=400, detail="sorry bro, but this username has already taken. Be more faster next time.")
 
     user_token = secrets.token_hex(16)
     new_user_data = {
+        "username": username,
         "token": user_token,
         "streak": 0,
         "last_streak_date": "none",
         "plan": [],
         "window_start": datetime.now().isoformat(),
         "count": 0,
-        "still_keeping_time": "false",
-        "study_time": 0
 
     }
-    await db.insert(new_user_data).execute()
+    db.insert(new_user_data).execute()
     return {"message": "here is your token sir", "token": user_token}
 
 @app.post("/api/v1/new-study-plan")
@@ -138,7 +137,7 @@ async def study_plan(hours: int, subject: str, difficulty: str = None, break_tim
             "study": f"study or practice {subject}",
             "break minutes": break_time
         })
-    await db.update({"plan": plan}).eq("username", user).execute()
+    db.update({"plan": plan}).eq("username", user).execute()
     
     if break_time >= 15:
         difficulty = "Easy"
@@ -149,7 +148,7 @@ async def study_plan(hours: int, subject: str, difficulty: str = None, break_tim
     elif break_time < 5:
         difficulty = "Hardcore"
 
-    streak = await db.select("streak").eq("username", user).execute()
+    streak = db.select("streak").eq("username", user).execute()
     if streak.data[0]["streak"] >= 1:
         return {"user": user,
             "message": f"hey, i see that youre on a streak! keep it on fire baby!!!!!",    
@@ -164,8 +163,7 @@ async def study_plan(hours: int, subject: str, difficulty: str = None, break_tim
 @app.get("/api/v1/get-study-plan")
 async def get_study_plan(user: str = Depends(get_current_user_token)):
     await rate_limit(user)
-    have_plan = False
-    current_plan = await db.select("plan").eq("username", user).execute()
+    current_plan = db.select("plan").eq("username", user).execute()
     if current_plan.data[0]["plan"] == []:
         return {"message": "you dont have a plan bro.. NOW GO AND GET A STUDY PLAN!!!", "plan": []}
     return {"message": "here is current plan sir", "plan": current_plan.data[0]["plan"]}
@@ -173,11 +171,11 @@ async def get_study_plan(user: str = Depends(get_current_user_token)):
 @app.post("/api/v1/reset-study-plan")
 async def reset_study_plan(user: str = Depends(get_current_user_token)):
     await rate_limit(user)
-    current_plan = await db.select("plan").eq("username", user).execute()
+    current_plan = db.select("plan").eq("username", user).execute()
     if current_plan.data[0]["plan"] == []:
         return {"message": "bro, you dont have a study plan already. GO GET A STUDY PLAN"}
     else:
-        await db.update({"plan": []}).eq("username", user).execute()
+        db.update({"plan": []}).eq("username", user).execute()
         return {"message": "your study plan succesfully reseted.. NOW GET A NEW STUDY PLAN YOU COUCH POTATO"}
 
 
@@ -185,11 +183,11 @@ async def reset_study_plan(user: str = Depends(get_current_user_token)):
 async def update_streak(user: str = Depends(get_current_user_token)):
     await rate_limit(user)
     today = str(date.today())
-    last_streak_date_db = await db.select("last_streak_date").eq("username", user).execute()
-    streak_db = await db.select("streak").eq("username", user).execute()
+    last_streak_date_db = db.select("last_streak_date").eq("username", user).execute()
+    streak_db = db.select("streak").eq("username", user).execute()
 
     if last_streak_date_db.data[0]["last_streak_date"] == "none":
-        await db.update({"last_streak_date": today, "streak": streak_db.data[0]["streak"] + 1}).eq("username", user).execute()
+        db.update({"last_streak_date": today, "streak": streak_db.data[0]["streak"] + 1}).eq("username", user).execute()
         return{"message": "your streak is succesfully increased!", "streak": streak_db.data[0]["streak"]}
     
     last_streak_day = date.fromisoformat(last_streak_date_db.data[0]["last_streak_date"])
@@ -199,13 +197,13 @@ async def update_streak(user: str = Depends(get_current_user_token)):
     
     today = date.today()
     if (today - last_streak_day).days >= 2:
-        await db.update({"last_streak_date": today.isoformat(), "streak": 1}).eq("username", user).execute()
+        db.update({"last_streak_date": today.isoformat(), "streak": 1}).eq("username", user).execute()
         return {"message": "sorry bro, but you miss your streak", "current streak": streak_db.data[0]["streak"]}
 
-    await db.update({"streak": streak_db.data[0]["streak"] + 1, "last_streak_date": today.isoformat()}).eq("username", user).execute()
-    streak_db = await db.select("streak").eq("username", user).execute()
+    db.update({"streak": streak_db.data[0]["streak"] + 1, "last_streak_date": today.isoformat()}).eq("username", user).execute()
+    streak_db = db.select("streak").eq("username", user).execute()
 
-    return{"message": "your streak is succesfully increased!", "streak": streak_db.data[0]["streak"]}
+    return{"message": "your streak is succesfully increased!", "streak": streak_db.data[0]["streak"] + 1}
 
 @app.get("/api/v1/motivation")
 async def motivation(user: str = Depends(get_current_user_token)):
@@ -217,7 +215,7 @@ async def motivation(user: str = Depends(get_current_user_token)):
 @app.get("/api/v1/me")
 async def show_me(user: str = Depends(get_current_user_token)):
     await rate_limit(user)
-    users_all_data = await db.select("*").eq("username", user).execute()
+    users_all_data = db.select("*").eq("username", user).execute()
     return {f"{user}": users_all_data.data[0]}
     
     
